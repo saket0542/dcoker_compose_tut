@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Guestbook — Docker Compose Demo</title>
+<style>
+  :root {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+  }
+  body {
+    max-width: 640px;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem;
+    background: #f6f7f9;
+    color: #1b1f24;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #5b6470; margin-top: 0; margin-bottom: 1.5rem; font-size: 0.95rem; }
+  .card {
+    background: #fff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .card h2 { margin-top: 0; font-size: 1.05rem; }
+  form { display: flex; flex-direction: column; gap: 0.6rem; }
+  input, textarea {
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #d3d7dd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: inherit;
+  }
+  button {
+    padding: 0.55rem 0.9rem;
+    border: none;
+    border-radius: 6px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  button:hover { background: #1d4ed8; }
+  ul#messages { list-style: none; padding: 0; margin: 0; }
+  ul#messages li {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eef0f3;
+  }
+  ul#messages li:last-child { border-bottom: none; }
+  .msg-name { font-weight: 600; }
+  .msg-time { color: #8a929e; font-size: 0.8rem; float: right; }
+  .visits-badge {
+    display: inline-block;
+    background: #eef2ff;
+    color: #2563eb;
+    font-weight: 700;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+  }
+  .empty { color: #8a929e; font-style: italic; }
+  .error { color: #c0392b; font-size: 0.85rem; margin-top: 0.3rem; }
+</style>
+</head>
+<body>
+  <h1>📖 Guestbook</h1>
+  <p class="subtitle">Docker Compose demo — nginx → api → (postgres + redis)</p>
+
+  <div class="card">
+    <h2>Page views</h2>
+    <p>This page has been viewed <span id="visits" class="visits-badge">...</span> times (counted by Redis).</p>
+  </div>
+
+  <div class="card">
+    <h2>Sign the guestbook</h2>
+    <form id="message-form">
+      <input id="name" type="text" placeholder="Your name" required maxlength="80" />
+      <textarea id="message" placeholder="Your message" required maxlength="500" rows="3"></textarea>
+      <button type="submit">Submit</button>
+      <div id="form-error" class="error"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Messages</h2>
+    <ul id="messages"><li class="empty">Loading...</li></ul>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

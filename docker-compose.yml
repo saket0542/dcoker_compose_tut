@@ -1,0 +1,130 @@
+# =============================================================================
+# guestbook-compose-demo — docker-compose.yml
+#
+# Teaching goals:
+#   1. Multi-container communication via Docker's embedded DNS (service name
+#      == hostname, resolvable only by containers attached to the same network).
+#   2. Network isolation using two custom bridge networks.
+#   3. Named volumes for durable Postgres data.
+#   4. Healthchecks + depends_on conditions to sequence startup correctly.
+#   5. Compose "profiles" to make an optional service (adminer) opt-in only.
+# =============================================================================
+
+networks:
+  # frontend-net: the "public-facing" tier. Only nginx and api live here.
+  # nginx can reach api on this network, but nothing else.
+  frontend-net:
+    driver: bridge
+
+  # backend-net: the "private" data tier. api, db, cache, and adminer live
+  # here. nginx is deliberately NOT attached to this network, so it has no
+  # route to db or cache — proving network segmentation in practice.
+  backend-net:
+    driver: bridge
+
+volumes:
+  # Named volume so Postgres data survives container recreation (but is
+  # wiped by `docker compose down -v`).
+  dbdata:
+
+services:
+  # ---------------------------------------------------------------------------
+  # nginx: reverse proxy + static frontend. The ONLY service exposed to the
+  # host on the "public" port 8080. Sits on frontend-net only.
+  # ---------------------------------------------------------------------------
+  nginx:
+    build: ./nginx
+    container_name: guestbook-nginx
+    ports:
+      - "8080:80"
+    networks:
+      - frontend-net
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # api: Flask backend. The ONLY service that bridges frontend-net and
+  # backend-net. Not exposed to the host — only reachable through nginx's
+  # reverse proxy at /api/.
+  # ---------------------------------------------------------------------------
+  api:
+    build: ./api
+    container_name: guestbook-api
+    networks:
+      - frontend-net
+      - backend-net
+    environment:
+      # Service hostnames below (db, cache) are resolved via Docker's
+      # embedded DNS server because api shares backend-net with both.
+      DB_HOST: db
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: cache
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # db: Postgres 16. Not exposed to the host. Only reachable by services on
+  # backend-net (api, adminer).
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16
+    container_name: guestbook-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # cache: Redis 7. Stores the page-view counter. Not exposed to the host.
+  # ---------------------------------------------------------------------------
+  cache:
+    image: redis:7-alpine
+    container_name: guestbook-cache
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # adminer: optional DB admin UI. Only started when the "debug" profile is
+  # explicitly requested: `docker compose --profile debug up -d`.
+  # Exposed on host port 8081 only in that case. Lives on backend-net so it
+  # can reach db directly (that's its whole job).
+  # ---------------------------------------------------------------------------
+  adminer:
+    image: adminer:latest
+    container_name: guestbook-adminer
+    profiles:
+      - debug
+    ports:
+      - "8081:8080"
+    networks:
+      - backend-net
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped

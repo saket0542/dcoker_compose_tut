@@ -1,0 +1,8 @@
+# Root-level dockerignore (mostly relevant if you ever build from repo root)
+.git
+.gitignore
+.env
+*.md
+**/__pycache__
+**/*.pyc
+node_modules
